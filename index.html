@@ -1,0 +1,97 @@
+<!-- templates/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AI Anomaly Detection — Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f3f6fb; color:#222; }
+    .card { max-width:720px; margin:30px auto; background:white; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(20,30,60,0.08); }
+    h1 { color:#0d47a1; margin-top:0; }
+    label { display:block; margin-top:10px; font-weight:600; }
+    input, select { width:100%; padding:8px; margin-top:6px; border-radius:6px; border:1px solid #ddd; }
+    button { margin-top:14px; padding:10px 14px; background:#0d47a1; color:white; border:none; border-radius:6px; cursor:pointer; }
+    .result { margin-top:16px; padding:12px; background:#f7fbff; border-radius:6px; }
+    .bad { color:#b00020; font-weight:700; }
+    .good { color:#117a00; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>AI Anomaly Detection — Live Demo</h1>
+    <p>Enter a transaction and press <b>Score</b>. The demo calls backend `/score` and returns model outputs.</p>
+
+    <label>Amount (USD)</label>
+    <input id="amount" type="number" value="25" />
+
+    <label>Hour of day (0-23)</label>
+    <input id="hour" type="number" value="12" />
+
+    <label>Is International?</label>
+    <select id="is_international">
+      <option value="0" selected>No</option>
+      <option value="1">Yes</option>
+    </select>
+
+    <label>Channel</label>
+    <select id="channel">
+      <option>mobile</option>
+      <option>web</option>
+      <option>pos</option>
+      <option>atm</option>
+    </select>
+
+    <label>Merchant Category</label>
+    <select id="merchant_cat">
+      <option>grocery</option>
+      <option>travel</option>
+      <option>electronics</option>
+      <option>utilities</option>
+      <option>others</option>
+    </select>
+
+    <button id="scoreBtn">Score Transaction</button>
+
+    <div id="result" class="result" style="display:none;"></div>
+  </div>
+
+<script>
+document.getElementById('scoreBtn').addEventListener('click', async () => {
+  const payload = {
+    transaction_id: 'tx_web_'+Date.now(),
+    customer_id: 'cust_demo',
+    amount: parseFloat(document.getElementById('amount').value || 0),
+    hour: parseInt(document.getElementById('hour').value || 0),
+    is_international: parseInt(document.getElementById('is_international').value || 0),
+    channel: document.getElementById('channel').value,
+    merchant_cat: document.getElementById('merchant_cat').value
+  };
+  const resEl = document.getElementById('result');
+  resEl.style.display = 'block';
+  resEl.innerHTML = 'Scoring...';
+
+  try {
+    const resp = await fetch('/score', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    const score = data.result.combined_score;
+    const action = data.action;
+    const explanations = data.result.explanations || [];
+    let html = `<p><strong>Combined score:</strong> ${score.toFixed(4)}</p>`;
+    html += `<p><strong>Suggested action:</strong> <span class="${action==='no_action' ? 'good' : (action==='block' ? 'bad' : '')}">${action}</span></p>`;
+    html += `<p><strong>Model notes:</strong></p><ul>`;
+    explanations.forEach(e => html += `<li>${e}</li>`);
+    html += `</ul>`;
+    resEl.innerHTML = html;
+  } catch (err) {
+    resEl.innerHTML = '<span class="bad">Error scoring transaction. Is the backend running?</span>';
+    console.error(err);
+  }
+});
+</script>
+</body>
+</html>
